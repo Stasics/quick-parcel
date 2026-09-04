@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрация | QUICK PARCEL</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/intlTelInput.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js"></script>
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon"> 
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            position: relative;
+        }
+
+        .back-to-home {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 8px 15px;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .back-to-home:hover {
+            background-color: #2980b9;
+        }
+        
+        .auth-container {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .auth-form h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+        
+        .auth-form p.description {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.4;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+        
+        .form-group input::placeholder {
+            color: #999;
+        }
+        
+        .captcha-container {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+        }
+        
+        .captcha-container input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        
+        .captcha-text {
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .privacy-links {
+            font-size: 12px;
+            color: #666;
+            margin: 10px 0;
+            text-align: center;
+        }
+        
+        .privacy-links a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .sms-notice {
+            font-size: 13px;
+            color: #666;
+            margin: 10px 0;
+            text-align: center;
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .error {
+            color: red;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+        
+        .login-link {
+            text-align: center;
+            margin-top: 15px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .login-link a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .social-login {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .social-login p {
+            position: relative;
+        }
+        
+        .social-login p::before,
+        .social-login p::after {
+            content: "";
+            display: inline-block;
+            width: 30%;
+            height: 1px;
+            background: #ddd;
+            position: absolute;
+            top: 50%;
+        }
+        
+        .social-login p::before {
+            left: 0;
+        }
+        
+        .social-login p::after {
+            right: 0;
+        }
+        
+        .checkbox-group {
+            margin: 15px 0;
+        }
+        
+        .checkbox-item {
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .checkbox-item input {
+            margin-right: 10px;
+            margin-top: 3px;
+        }
+        
+        .checkbox-item label {
+            font-size: 13px;
+            color: #333;
+            line-height: 1.4;
+        }
+        
+        .required-field::after {
+            content: " *";
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-to-home">Вернуться на главную</a>
+    
+    <div class="auth-container">
+        <div class="auth-form">
+            <h1>Регистрация</h1>
+            
+            <form id="registerForm">
+                <!-- Имя и Фамилия -->
+                <div class="form-group">
+                    <input type="text" id="first_name" name="first_name" placeholder="Имя" required>
+                </div>
+                
+                <div class="form-group">
+                    <input type="text" id="last_name" name="last_name" placeholder="Фамилия">
+                </div>
+
+                <!-- Email -->
+                <div class="form-group">
+                    <input type="email" id="email" name="email" placeholder="Эл. почта" required>
+                </div>
+
+                <!-- Телефон -->
+                <div class="form-group">
+                    <input type="tel" id="phone" name="phone" placeholder="Телефон" required>
+                    <div id="phone-error" class="error"></div>
+                </div>
+
+                <!-- Пароль -->
+                <div class="form-group" id="passwordGroup">
+                    <label for="reg-password">Пароль:</label>
+                    <input type="password" id="reg-password" name="reg-password" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm-password">Подтвердите пароль:</label>
+                    <input type="password" id="confirm-password" name="confirm-password" required>
+                    <span id="password-error" class="error-message"></span>
+                </div>
+                
+                <button type="submit" id="submit-btn">Зарегистрироваться</button>
+            </form>
+
+            <div class="login-link">
+                Уже есть аккаунт? <a href="login.html">Войти</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация маски телефона
+        const phoneInput = document.getElementById('phone');
+        const iti = window.intlTelInput(phoneInput, {
+            initialCountry: 'ru',
+            utilsScript: 'https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js'
+        });
+    
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const firstName = document.getElementById('first_name').value;
+            const lastName = document.getElementById('last_name').value;
+            const email = document.getElementById('email').value;
+            const phone = iti.getNumber();
+            const password = document.getElementById('reg-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+    
+            // Валидация
+            if (!iti.isValidNumber()) {
+                alert('Введите корректный номер телефона');
+                return;
+            }
+    
+            if (password !== confirmPassword) {
+                alert('Пароли не совпадают');
+                return;
+            }
+    
+            try {
+                // Формируем данные для бэкенда (соответствуем UserCreate в API)
+                const userData = {
+                    email: email,
+                    password: password,
+                    phone: phone,
+                    full_name: `${firstName} ${lastName}`.trim(), // Объединяем имя и фамилию
+                    is_courier: false
+                };
+    
+                // Отправка данных (используем ваш API)
+                const response = await fetch('http://localhost:8000/users/api/auth/register', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                });
+    
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Ошибка регистрации');
+                }
+    
+                alert('Регистрация успешна! Войдите в систему.');
+                window.location.href = 'login.html';
+            } catch (error) {
+                console.error('Ошибка регистрации:', error);
+                alert(`Ошибка: ${error.message}`);
+            }
+        });
+    </script>
+</body>
+</html>

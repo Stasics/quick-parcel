@@ -1,0 +1,853 @@
+<script src="js/script.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const authToken = localStorage.getItem('authToken');
+    
+    if (!authToken) {
+        window.location.href = 'login.html';
+        return;
+    }
+
+    try {
+        // Получаем данные пользователя
+        const userResponse = await fetch('http://localhost:8000/users/api/auth/me', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
+
+        if (!userResponse.ok) {
+            throw new Error('Ошибка загрузки данных');
+        }
+
+        const user = await userResponse.json();
+        
+        // Заполняем профиль
+        document.getElementById('profile-name').textContent = user.full_name || 'Не указано';
+        document.getElementById('profile-phone').textContent = user.phone || 'Не указано';
+        document.getElementById('profile-email').textContent = user.email || 'Не указано';
+
+        // Определяем endpoint в зависимости от роли
+        const packagesEndpoint = user.is_admin || user.is_courier 
+            ? 'http://localhost:8000/users/api/auth/admin/packages/'
+            : 'http://localhost:8000/users/api/auth/packages/';
+        
+        const ordersResponse = await fetch(packagesEndpoint, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
+        
+        if (ordersResponse.ok) {
+            const orders = await ordersResponse.json();
+            renderOrders(orders, user.is_admin || user.is_courier);
+        }
+        
+    } catch (error) {
+        console.error('Ошибка загрузки данных:', error);
+        alert('Ошибка загрузки данных. Попробуйте войти снова.');
+        localStorage.removeItem('authToken');
+        window.location.href = 'login.html';
+    }
+});
+
+// Функция для рендеринга заказов
+function renderOrders(orders, isAdminOrCourier) {
+    const ordersContainer = document.querySelector('#orders-container');
+    ordersContainer.innerHTML = '';
+    
+    if (orders.length === 0) {
+        document.getElementById('no-orders-message').style.display = 'block';
+        return;
+    }
+
+    const statusTransitions = {
+        'created': ['paid'],
+        'paid': [], // автоматически переходит в processing
+        'processing': ['shipped'],
+        'shipped': ['delivered'],
+        'delivered': ['completed']
+    };
+
+    orders.forEach(order => {
+        const orderCard = document.createElement('div');
+        orderCard.className = 'order-card';
+        orderCard.innerHTML = `
+            <h3>Заказ #${order.tracking_number}</h3>
+            <p><strong>ПВЗ назначения:</strong> ${order.destination_pvz}</p>
+            <p><strong>Статус:</strong> <span class="status-badge status-${order.status}">${getStatusText(order.status)}</span></p>
+            <div class="status-actions"></div>
+        `;
+        
+        const statusActions = orderCard.querySelector('.status-actions');
+        
+        // Кнопка оплаты для клиента
+        if (order.status === 'created') {
+            const payButton = document.createElement('button');
+            payButton.className = 'status-button pay';
+            payButton.textContent = 'Оплатить';
+            payButton.addEventListener('click', () => payOrder(order.tracking_number));
+            statusActions.appendChild(payButton);
+        }
+        
+        // Кнопки изменения статуса для админов/курьеров
+        if (isAdminOrCourier && statusTransitions[order.status]?.length > 0) {
+            statusTransitions[order.status].forEach(status => {
+                const button = document.createElement('button');
+                button.className = `status-button ${status}`;
+                button.textContent = `Перевести в ${getStatusText(status)}`;
+                button.addEventListener('click', async () => {
+                    try {
+                        const updatedOrder = await updateOrderStatus(order.tracking_number, status);
+                        const statusElement = orderCard.querySelector('.status-badge');
+                        if (statusElement) {
+                            statusElement.className = `status-badge status-${updatedOrder.status}`;
+                            statusElement.textContent = getStatusText(updatedOrder.status);
+                        }
+                        statusActions.innerHTML = '';
+                        
+                        // Добавляем новые кнопки если есть
+                        if (statusTransitions[updatedOrder.status]?.length > 0) {
+                            statusTransitions[updatedOrder.status].forEach(newStatus => {
+                                const newButton = document.createElement('button');
+                                newButton.className = `status-button ${newStatus}`;
+                                newButton.textContent = `Перевести в ${getStatusText(newStatus)}`;
+                                newButton.addEventListener('click', async () => {
+                                    await updateOrderStatus(updatedOrder.tracking_number, newStatus);
+                                    location.reload();
+                                });
+                                statusActions.appendChild(newButton);
+                            });
+                        }
+                    } catch (error) {
+                        console.error(error);
+                    }
+                });
+                statusActions.appendChild(button);
+            });
+        }
+        
+        ordersContainer.appendChild(orderCard);
+    });
+}
+
+// Функция для получения текста статуса
+function getStatusText(status) {
+    const statusTexts = {
+        'created': 'Создан',
+        'paid': 'Оплачен',
+        'processing': 'В обработке',
+        'shipped': 'Отправлен',
+        'delivered': 'Доставлен в ПВЗ',
+        'completed': 'Получен'
+    };
+    return statusTexts[status] || status;
+}
+
+// Функция для обновления статуса заказа
+async function updateOrderStatus(trackingNumber, newStatus) {
+    try {
+        const authToken = localStorage.getItem('authToken');
+        const response = await fetch(
+            `http://localhost:8000/users/api/auth/packages/${trackingNumber}/status`,
+            {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status: newStatus })
+            }
+        );
+        
+        if (!response.ok) {
+            throw new Error('Ошибка обновления статуса');
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Не удалось обновить статус');
+        throw error;
+    }
+}
+
+// Функция для оплаты заказа
+async function payOrder(trackingNumber) {
+    try {
+        const authToken = localStorage.getItem('authToken');
+        const response = await fetch(`http://localhost:8000/users/api/auth/packages/${trackingNumber}/pay`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            openPaymentModal(trackingNumber);
+            // После успешной оплаты обновляем список заказов
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            throw new Error('Ошибка при обновлении статуса заказа');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Произошла ошибка при попытке оплаты');
+    }
+}
+
+// Функция для открытия модального окна оплаты
+function openPaymentModal(orderId) {
+    document.getElementById('payment-modal').classList.add('active');
+    
+    document.querySelector('.cancel-button').addEventListener('click', closePaymentModal);
+}
+
+// Функция для закрытия модального окна оплаты
+function closePaymentModal() {
+    document.getElementById('payment-modal').classList.remove('active');
+}
+
+// Переключение вкладок
+document.querySelectorAll('.sidebar-menu a').forEach(link => {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const tabId = this.getAttribute('href').substring(1);
+        
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelectorAll('.sidebar-menu a').forEach(a => {
+            a.classList.remove('active');
+        });
+        
+        document.getElementById(tabId).classList.add('active');
+        this.classList.add('active');
+    });
+});
+
+  </script>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+      <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Личный кабинет | QUICK PARCEL</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Montserrat', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .page-wrapper {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        header {
+            background-color: #2c3e50;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+       .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #3498db;
+            cursor: pointer;
+        }
+        .logo b {
+            cursor: pointer;
+        }
+        nav ul {
+            list-style: none;
+            display: flex;
+            margin: 0;
+            padding: 0;
+        }
+        nav ul li {
+            margin-left: 20px;
+        }
+        .login-button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .login-button:hover {
+            background-color: rgba(255,255,255,0.2);
+        }
+        .main-account-page {
+            flex: 1;
+            padding: 30px 0;
+        }
+        .account-container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            gap: 30px;
+        }
+        .sidebar {
+            width: 250px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 20px;
+        }
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .sidebar-menu li {
+            margin-bottom: 10px;
+        }
+        .sidebar-menu a {
+            display: block;
+            padding: 10px 15px;
+            color: #333;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .sidebar-menu a:hover, .sidebar-menu a.active {
+            background-color: #f0f0f0;
+            color: #3498db;
+        }
+        .main-content {
+            flex: 1;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 30px;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Новые стили для профиля */
+        .profile-view {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .profile-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .profile-phone {
+            font-size: 16px;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        .profile-field {
+            margin-bottom: 15px;
+        }
+        .field-label {
+            font-size: 14px;
+            color: #777;
+            margin-bottom: 5px;
+        }
+        .field-value {
+            font-size: 16px;
+            color: #333;
+        }
+        .profile-id {
+            color: #4CAF50;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+        .profile-id i {
+            margin-right: 5px;
+        }
+        .edit-profile-btn {
+            width: 100%;
+            padding: 12px;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        
+        /* Остальные стили */
+        .order-card {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        /* Стили для заказов */
+        .order-card {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        .order-card h3 {
+            margin-top: 0;
+        }
+        .order-card p {
+            margin-bottom: 10px;
+        }
+        .pay-button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .pay-button:hover {
+            background-color: #2980b9;
+        }
+        .status-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status-button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .status-button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .status-button.pay {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .status-button.processing {
+            background-color: #f39c12;
+            color: white;
+        }
+
+        .status-button.shipped {
+            background-color: #e67e22;
+            color: white;
+        }
+
+        .status-button.delivered {
+            background-color: #2ecc71;
+            color: white;
+        }
+
+        .status-button.completed {
+            background-color: #27ae60;
+            color: white;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-left: 5px;
+        }
+
+        .status-created {
+            background-color: #bdc3c7;
+            color: #2c3e50;
+        }
+
+        .status-paid {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .status-processing {
+            background-color: #f39c12;
+            color: white;
+        }
+
+        .status-shipped {
+            background-color: #e67e22;
+            color: white;
+        }
+
+        .status-delivered {
+            background-color: #2ecc71;
+            color: white;
+        }
+
+        .status-completed {
+            background-color: #27ae60;
+            color: white;
+        }
+        
+        /* Модальное окно для оплаты */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .modal-title {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .modal-subtitle {
+            font-size: 16px;
+            color: #7f8c8d;
+            margin-bottom: 20px;
+        }
+        .bank-list {
+            margin-bottom: 25px;
+        }
+         .bank-button {
+        display: flex;
+        align-items: center;
+        width: 100%; /* Занимает всю ширину списка */
+        padding: 12px 15px;
+        margin-bottom: 10px; /* Только нижний отступ */
+        box-sizing: border-box; /* Важно! */
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #333;
+    }
+        .bank-button:hover {
+            background-color: #e9ecef;
+            border-color: #adb5bd;
+        }
+        .bank-button i {
+            margin-right: 10px;
+            color: #3498db;
+        }
+        .bank-logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  margin-right: 10px;
+  vertical-align: middle;
+  border-radius: 3px; /* Для красоты */
+}
+        .cancel-button {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #7f8c8d;
+            border: none;
+            background: none;
+        }
+        .cookies-notice {
+            font-size: 12px;
+            color: #95a5a6;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+         footer {
+            background-color: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9rem;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .hero--info h1 {
+                font-size: 2rem;
+            }
+            
+            .feature {
+                min-width: 150px;
+            }
+            
+            .input-group {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+        <header>
+            <div class="header-content">
+                <div class="logo">
+                    <a id="reload-logo" onclick="window.location.href='index.html'">QUICK PARCEL</a>
+                </div>
+                <nav>
+                    <ul>
+                        <li>
+                            <button class="login-button">Выйти</button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </header>
+        <div class="main-account-page">
+            <div class="account-container">
+                <div class="sidebar">
+                    <ul class="sidebar-menu">
+                        <li><a href="#profile" class="active">Профиль</a></li>
+                        <li><a href="#orders">Мои заказы</a></li>
+                    </ul>
+                </div>
+
+                <div class="main-content">
+                    <div id="profile" class="tab-content active">
+                        <h2>Профиль</h2>
+                        <div class="profile-view">
+                            <div class="profile-name" id="profile-name"></div>
+                            <div class="profile-phone" id="profile-phone"></div>
+                            
+                            <div class="profile-field">
+                                <div class="field-label">Email</div>
+                                <div class="field-value" id="profile-email"></div>
+                            </div>
+                            
+                            <div id="saved-order-section" class="saved-order-section" style="display: none;">
+                                <h3>Готовый к оформлению заказ</h3>
+                                <div id="saved-order-details" class="order-summary"></div>
+                                <button id="confirm-order-btn" class="confirm-order-btn">Оформить заказ</button>
+                            </div>
+
+                            <div class="profile-id">
+                                <i class="fas fa-check-circle"></i> QPC ID
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Заказы -->
+                    <div id="orders" class="tab-content">
+                        <h2>Заказы</h2>
+                        <div id="no-orders-message" class="no-orders-message" style="display: none;">
+                            У вас пока нет заказов
+                        </div>
+                        <div id="orders-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно для оплаты -->
+        <div class="modal-overlay" id="payment-modal">
+    <div class="modal-content">
+        <h2 class="modal-title">Выберите банковское приложение для оплаты</h2>
+        
+        <div class="bank-list">
+            <a href="https://online.sberbank.ru" class="bank-button" target="_blank">
+                 <img src="https://logo.clearbit.com/sberbank.ru" alt="Сбербанк" class="bank-logo">
+                 Сбербанк
+            </a>
+            <a href="https://www.tinkoff.ru" class="bank-button" target="_blank">
+                <img src="https://logo.clearbit.com/tinkoff.ru?size=40" alt="ТБанк" class="bank-logo">
+                ТБанк
+            </a>
+            <a href="https://www.vtb.ru" class="bank-button" target="_blank">
+                <img src="https://favicon.yandex.net/favicon/vtb.ru" alt="ВТБ" class="bank-logo">
+                ВТБ
+            </a>
+            <a href="https://alfabank.ru" class="bank-button" target="_blank">
+                <img src="https://logo.clearbit.com/alfabank.ru?size=40&format=png" alt="Альфа-Банк" class="bank-logo">
+                Альфа-Банк
+            </a>
+            <a href="https://www.raiffeisen.ru" class="bank-button" target="_blank">
+                <img src="https://favicon.yandex.net/favicon/raiffeisen.ru" alt="Райффайзенбанк" class="bank-logo">
+                Райффайзенбанк
+            </a>
+           <a href="https://www.gazprombank.ru" class="bank-button" target="_blank">
+                <img src="https://logo.clearbit.com/gazprombank.ru?size=40&format=png" alt="Газпромбанк" class="bank-logo">
+                Газпромбанк
+            </a>
+            <button class="cancel-button">Отменить оплату</button>
+        </div>
+    </div>
+</div>
+
+        <footer>
+            <div class="footer-content">
+                <p>© 2025 QUICK PARCEL - курьерская компания.</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Переключение вкладок
+        document.querySelectorAll('.sidebar-menu a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const tabId = this.getAttribute('href').substring(1);
+                
+                // Убираем активный класс у всех вкладок
+                document.querySelectorAll('.tab-content').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelectorAll('.sidebar-menu a').forEach(a => {
+                    a.classList.remove('active');
+                });
+                
+                // Активируем текущую вкладку
+                document.getElementById(tabId).classList.add('active');
+                this.classList.add('active');
+            });
+        });
+
+        document.querySelector('.login-button').addEventListener('click', () => {
+            localStorage.removeItem('authToken');
+            window.location.href = 'login.html';
+        });
+
+        document.querySelector('.cancel-button').addEventListener('click', closePaymentModal);
+
+        // Проверяем сохраненные данные при загрузке страницы
+        document.addEventListener('DOMContentLoaded', async () => {
+            const savedData = JSON.parse(localStorage.getItem('deliveryData'));
+            const savedOrderSection = document.getElementById('saved-order-section');
+            const noOrderMessage = document.getElementById('no-order-message');
+            const orderDetails = document.getElementById('saved-order-details');
+            const ordersContainer = document.getElementById('orders-container');
+
+            if (savedData && savedData.from && savedData.to && savedData.weight && savedData.price) {
+                try {
+                    const authToken = localStorage.getItem('authToken');
+                    if (!authToken) {
+                        window.location.href = 'login.html';
+                        return;
+                    }
+
+                    // First get user data
+                    const userResponse = await fetch('http://localhost:8000/users/api/auth/me', {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
+
+                    if (!userResponse.ok) {
+                        throw new Error('Failed to get user data');
+                    }
+
+                    const user = await userResponse.json();
+
+                    // Then create package
+                    const response = await fetch('http://localhost:8000/users/api/auth/packages/', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            tracking_number: `QP-${Date.now()}`,
+                            destination_pvz: savedData.to,
+                            user_id: user.id
+                        })
+                    });
+
+                    if (response.ok) {
+                        const newPackage = await response.json();
+                        
+                        // Format delivery type
+                        const urgencyMap = {
+                            '1': 'Обычная',
+                            '2': 'Срочная',
+                            '3': 'Экспресс'
+                        };
+                        
+                        const orderHTML = `
+                            <div class="order-card">
+                                <h3>Заказ #${newPackage.tracking_number}</h3>
+                                <p><strong>Откуда:</strong> ${savedData.from}</p>
+                                <p><strong>Куда:</strong> ${savedData.to}</p>
+                                <p><strong>Вес:</strong> ${savedData.weight} кг</p>
+                                <p><strong>Тип:</strong> ${urgencyMap[savedData.urgency]}</p>
+                                <p><strong>Стоимость:</strong> ${savedData.price.toLocaleString('ru-RU')} ₽</p>
+                                <p><strong>Статус:</strong> ${getStatusText(newPackage.status)}</p>                                ${newPackage.status === 'created' ? 
+                                    '<button class="pay-button" onclick="payOrder(\'' + newPackage.tracking_number + '\')">Оплатить</button>' : 
+                                    ''}
+                            </div>
+                        `;
+
+                        ordersContainer.innerHTML = orderHTML + ordersContainer.innerHTML;
+                        localStorage.removeItem('deliveryData');
+                        document.getElementById('no-orders-message').style.display = 'none';
+                        
+                        // Switch to orders tab
+                        const ordersTabLink = document.querySelector('.sidebar-menu a[href="#orders"]');
+                        const ordersTabContent = document.getElementById('orders');
+                        
+                        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+                        document.querySelectorAll('.sidebar-menu a').forEach(a => a.classList.remove('active'));
+                        
+                        ordersTabContent.classList.add('active');
+                        ordersTabLink.classList.add('active');
+                    }
+                } catch (error) {
+                    console.error('Ошибка создания заказа:', error);
+                    alert('Не удалось создать заказ. Попробуйте ещё раз.');
+                }
+            }
+        });
+         
+    </script>
+</body>
+</html>

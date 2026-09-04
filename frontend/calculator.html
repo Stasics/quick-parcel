@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="styleCalculator.css" />
+      <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <title>QUICKPARCEL - Калькулятор</title>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+                <div class="logo">
+                    <span id="reload-logo" onclick="window.location.href='index.html'">QUICK PARCEL</span>
+                </div>
+            <nav>
+                <ul>
+                    <li>
+                        <button class="login-button" id="auth-button">Войти</button>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+    
+    <div class="main-content-calculator">
+        <div class="calculator_container">
+            <h1 class="calculator_text">Калькулятор доставки</h1>
+            
+            <div class="location-section">
+                <h2 class="section-title">Направление доставки</h2>
+                <div class="location-inputs">
+                    <div class="location-input">
+                        <input type="text" list="citiesList" placeholder="Откуда (город, регион, страна)" value="">
+                    </div>
+                    <div class="location-swap">
+                        <button class="swap-btn">
+                            <i class="fas fa-exchange-alt"></i>
+                        </button>
+                    </div>
+                    <div class="location-input">
+                        <input type="text" list="citiesList" placeholder="Куда (город, регион, страна)" value="">
+                    </div>
+                </div>
+            </div>
+            
+            <datalist id="citiesList">
+                <option value="Москва">
+                <option value="Санкт-Петербург">
+                <option value="Новосибирск">
+                <option value="Екатеринбург">
+                <option value="Нижний Новгород">
+                <option value="Казань">
+                <option value="Челябинск">
+                <option value="Омск">
+                <option value="Самара">
+                <option value="Ростов-на-Дону">
+                <option value="Уфа">
+                <option value="Красноярск">
+                <option value="Пермь">
+                <option value="Воронеж">
+                <option value="Волгоград">
+                <option value="Симферополь">
+            </datalist>
+            
+            <div class="delivery-options">
+                <h2 class="section-title">Параметры доставки</h2>
+                <div class="options-grid">
+                    <div class="option-card active">
+                        <div class="option-title">Обычная</div>
+                        <div class="option-desc">Доставка от 5 до 7 дней.</div>
+                    </div>
+                    <div class="option-card">
+                        <div class="option-title">Экспресс</div>
+                        <div class="option-desc">Доставка от 3 до 5 дней.</div>
+                    </div>
+                    <div class="option-card">
+                        <div class="option-title">Срочная</div>
+                        <div class="option-desc">Доставка от 2 до 3 дней.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="weight-options">
+                <h2 class="section-title">Вес посылки</h2>
+                <div class="weight-input">
+                    <input type="text" placeholder="Вес в кг" value="">
+                </div>
+            </div>
+            
+            <div class="payment-section">
+                <h2 class="section-title">Оплата доставки</h2>
+                <div class="payment-options">
+                    <div class="payment-option active">
+                        <div class="option-title">Отправитель</div>
+                        <div class="option-desc">Оплачиваю я при отправке</div>
+                    </div>
+                    <div class="payment-option">
+                        <div class="option-title">Получатель</div>
+                        <div class="option-desc">Оплачивает получатель</div>
+                    </div>
+                </div>
+            </div>
+            <div class="redo-payment">
+                <button class="redo-button">Пересчитать</button>
+            </div>
+        </div>
+        
+        <div class="check">
+            <h2 class="check-title">Стоимость доставки</h2>
+            <div class="check-summary">
+                <div class="summary-item">
+                    <span>Тариф</span>
+                    <span>0 ₽</span>
+                </div>
+                <div class="summary-item">
+                    <span>Страховка</span>
+                    <span>300 ₽</span>
+                </div>
+                <div class="summary-item summary-total">
+                    <span>Итого</span>
+                    <span></span>
+                </div>
+            </div>
+            <button class="check-button">Оформить доставку</button>
+        </div>
+    </div>
+    
+    <footer>
+        <div class="footer-content">
+            <p>© 2025 QUICK PARCEL - курьерская компания.</p>
+        </div>
+    </footer>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Получаем сохраненные данные
+            const savedData = JSON.parse(localStorage.getItem('deliveryData'));
+            
+            if (savedData) {
+                // Заполняем поля формы
+                document.querySelector('.location-input:first-child input').value = savedData.from;
+                document.querySelector('.location-input:last-child input').value = savedData.to;
+                document.querySelector('.weight-input input').value = savedData.weight;
+                
+                // Выбираем тип доставки (0=обычная, 1=экспресс, 2=срочная)
+                const deliveryCards = document.querySelectorAll('.option-card');
+                deliveryCards[parseInt(savedData.urgency) - 1].click();
+                
+                // Рассчитываем и отображаем стоимость
+                updatePriceDisplay(savedData);
+            }
+    
+            // Обработчики UI
+            document.querySelectorAll('.option-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    document.querySelectorAll('.option-card').forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                    recalculatePrice();
+                });
+            });
+            
+            document.querySelectorAll('.payment-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.payment-option').forEach(o => o.classList.remove('active'));
+                    this.classList.add('active');
+                    recalculatePrice(); // Добавляем вызов перерасчета при изменении способа оплаты
+                });
+            });
+            
+            document.querySelector('.swap-btn').addEventListener('click', function() {
+                const fromInput = document.querySelector('.location-input:first-child input');
+                const toInput = document.querySelector('.location-input:last-child input');
+                const temp = fromInput.value;
+                fromInput.value = toInput.value;
+                toInput.value = temp;
+                recalculatePrice();
+            });
+    
+            // Обработчик изменения веса
+            document.querySelector('.weight-input input').addEventListener('input', recalculatePrice);
+    
+            // Временный обработчик кнопки оформления
+            document.querySelector('.check-button').addEventListener('click', () => {
+                // Получаем данные из формы
+                const from = document.querySelector('.location-input:first-child input').value;
+                const to = document.querySelector('.location-input:last-child input').value;
+                const weight = parseFloat(document.querySelector('.weight-input input').value);
+                const urgency = document.querySelector('.option-card.active .option-title').textContent;
+                
+                // Проверяем заполнение полей
+                if (!from || !to || !weight || isNaN(weight)) {
+                    alert('Заполните все обязательные поля!');
+                    return;
+                }
+
+                // Преобразуем тип доставки в числовой формат
+                const urgencyMap = {
+                    'Обычная': '1',
+                    'Экспресс': '2',
+                    'Срочная': '3'
+                };
+                const urgencyValue = urgencyMap[urgency] || '1';
+
+                // Рассчитываем цену
+                const priceData = calculatePrice({ 
+                    from, 
+                    to, 
+                    weight, 
+                    urgency: urgencyValue 
+                });
+
+                const deliveryData = {
+                    from,
+                    to,
+                    weight,
+                    urgency: urgencyValue,
+                    tariff: priceData.tariff,
+                    insurance: priceData.insurance,
+                    price: priceData.total
+                };
+                
+                console.log('Сохраненные данные:', deliveryData); // Для отладки
+                localStorage.setItem('deliveryData', JSON.stringify(deliveryData));
+                
+                const authToken = localStorage.getItem('authToken');
+                if (authToken) {
+                    // Если авторизован - сразу в личный кабинет
+                    window.location.href = 'account.html';
+                } else {
+                    // Если не авторизован - на страницу входа с редиректом
+                    window.location.href = 'login.html?redirect=account';
+                }
+            });
+    
+            // Функция обновления отображения цены
+            function updatePriceDisplay(data) {
+                const priceData = calculatePrice(data);
+                
+                // Форматируем числа с разделителями
+                const format = num => new Intl.NumberFormat('ru-RU').format(num);
+                
+                // Обновляем значения в интерфейсе
+                document.querySelector('.summary-item:nth-child(1) span:last-child').textContent = `${format(priceData.tariff)} ₽`;
+                document.querySelector('.summary-item:nth-child(2) span:last-child').textContent = `${format(priceData.insurance)} ₽`;
+                document.querySelector('.summary-total span:last-child').textContent = `${format(priceData.total)} ₽`;
+            }
+    
+            // Функция перерасчета цены
+            function recalculatePrice() {
+                const from = document.querySelector('.location-input:first-child input').value;
+                const to = document.querySelector('.location-input:last-child input').value;
+                const weight = parseFloat(document.querySelector('.weight-input input').value);
+                const urgency = document.querySelector('.option-card.active .option-title').textContent.toLowerCase();
+                const paymentMethod = document.querySelector('.payment-option.active .option-title').textContent;
+                
+                if (from && to && weight && !isNaN(weight)) {
+                    const priceData = calculatePrice({
+                        from,
+                        to,
+                        weight,
+                        urgency: urgency === 'обычная' ? '1' : 
+                                urgency === 'экспресс' ? '2' : '3',
+                        paymentMethod: paymentMethod
+                    });
+
+                    updatePriceDisplay({
+                        ...priceData,
+                        from,
+                        to,
+                        weight,
+                        urgency: urgency === 'обычная' ? '1' : 
+                                urgency === 'экспресс' ? '2' : '3',
+                        paymentMethod: paymentMethod
+                    });
+                }
+            }
+            // Функция расчета цены (должна совпадать с index.html)
+            function calculatePrice(data) {
+                const basePrices = {
+                    "Москва": 100, "Санкт-Петербург": 140, "Нижний Новгород": 160,
+                    "Казань": 180, "Ростов-на-Дону": 200, "Воронеж": 200,
+                    "Волгоград": 220, "Екатеринбург": 240, "Уфа": 260,
+                    "Пермь": 380, "Челябинск": 400, "Омск": 440,
+                    "Новосибирск": 380, "Красноярск": 420, "Симферополь": 260
+                };
+                
+                const urgencyMultipliers = { "1": 1.0, "2": 1.5, "3": 2.0 };
+                
+                const fromPrice = basePrices[data.from] || 400;
+                const toPrice = basePrices[data.to] || 400;
+                const distanceFactor = Math.abs(fromPrice - toPrice) / 100;
+                
+                // Получаем выбранный способ оплаты
+                const paymentMethod = document.querySelector('.payment-option.active .option-title').textContent;
+                
+                // Рассчитываем стоимость без страховки
+                let tariff = Math.round((fromPrice + toPrice) * distanceFactor * data.weight * urgencyMultipliers[data.urgency]);
+                const insurance = 300; // Фиксированная страховка
+                
+                // Добавляем 120 рублей, если оплачивает получатель
+                if (paymentMethod === "Получатель") {
+                    tariff += 120;
+                }
+                
+                const total = tariff + insurance;
+                
+                return {
+                    tariff: tariff,
+                    insurance: insurance,
+                    total: total
+                };
+            }
+        });
+    </script>
+    <script>
+        // Проверка авторизации и изменение кнопки
+        document.addEventListener('DOMContentLoaded', () => {
+            const authToken = localStorage.getItem('authToken');
+            const authButton = document.getElementById('auth-button');
+            
+            if (authToken && authButton) {
+                authButton.textContent = 'Личный кабинет';
+                authButton.onclick = () => {
+                    window.location.href = 'account.html';
+                };
+            } else {
+                authButton.onclick = () => {
+                    window.location.href = 'login.html';
+                };
+            }
+        });
+    </script>
+</body>
+</html>
