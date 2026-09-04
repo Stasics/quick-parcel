@@ -88,7 +88,7 @@
 ---
 
 ### Калькулятор доставки
-![Калькулятор доставки](https://via.placeholder.com/800x400/FFD93D/FFFFFF?text=Калькулятор+доставки)
+![Калькулятор доставки](https://github.com/Stasics/quick-parcel/blob/main/frontend/assets/images/2.png?raw=true)
 
 *Расчёт стоимости доставки по весу и маршруту*
 
