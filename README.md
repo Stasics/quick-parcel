@@ -74,7 +74,7 @@
 ---
 
 ### Личный кабинет пользователя
-![Личный кабинет](https://via.placeholder.com/800x400/50C878/FFFFFF?text=Личный+кабинет+пользователя)
+![Личный кабинет](https://github.com/Stasics/quick-parcel/blob/main/frontend/assets/images/3.1.png?raw=true)
 
 *Страница с посылками пользователя и историей заказов*
 
