@@ -75,7 +75,7 @@
 
 ### Личный кабинет пользователя
 ![Личный кабинет](https://github.com/Stasics/quick-parcel/blob/main/frontend/assets/images/3.1.png?raw=true)
-
+![Личный кабинет](https://github.com/Stasics/quick-parcel/blob/main/frontend/assets/images/3.2.png?raw=true)
 *Страница с посылками пользователя и историей заказов*
 
 ---
