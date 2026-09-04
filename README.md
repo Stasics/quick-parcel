@@ -82,7 +82,7 @@
 
 ### Админ-панель
 ![Админ-панель](https://github.com/Stasics/quick-parcel/blob/main/frontend/assets/images/4.1.png?raw=true)
-![Админ-панель](https://github.com/Stasics/quick-parcel/blob/main/frontend/assets/images/4.1.png?raw=true)
+![Админ-панель](https://github.com/Stasics/quick-parcel/blob/main/frontend/assets/images/4.png?raw=true)
 
 *Управление пользователями, заказами и тарифами*
 
