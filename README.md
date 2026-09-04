@@ -67,7 +67,7 @@
 ## 📸 Скриншоты
 
 ### Главная страница
-![Главная страница](https://via.placeholder.com/800x400/4A90D9/FFFFFF?text=Главная+страница+Quick+Parcel)
+![Главная страница](https://github.com/Stasics/quick-parcel/blob/main/frontend/assets/images/1.png)
 
 *Скриншот главной страницы с калькулятором и информацией о сервисе*
 
