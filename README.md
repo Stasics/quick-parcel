@@ -36,3 +36,50 @@
 ---
 
 ## 📁 Структура проекта
+## 📁 Структура проекта
+quick-parcel/
+├── backend/ # Серверная часть (FastAPI)
+│ ├── app/
+│ │ ├── api/ # Эндпоинты (роутеры)
+│ │ ├── core/ # Конфигурация, безопасность, JWT
+│ │ ├── models/ # SQLAlchemy модели (БД)
+│ │ ├── schemas/ # Pydantic схемы (валидация)
+│ │ └── services/ # Бизнес-логика
+│ ├── alembic/ # Миграции БД
+│ ├── tests/ # Тесты
+│ ├── Dockerfile
+│ ├── requirements.txt
+│ └── .env.example
+│
+├── frontend/ # Клиентская часть
+│ ├── index.html # Главная страница
+│ ├── css/
+│ │ ├── style.css # Основные стили
+│ │ └── admin.css # Стили админ-панели
+│ ├── js/
+│ │ ├── auth.js # Авторизация, регистрация
+│ │ ├── packages.js # Управление посылками
+│ │ ├── admin.js # Админ-панель
+│ │ └── api.js # HTTP-запросы к бэкенду
+│ └── assets/
+│ └── images/ # Изображения, скриншоты
+│
+├── docker-compose.yml # Запуск всех сервисов
+└── README.md
+
+
+---
+
+## 🚀 Быстрый старт
+
+### Предварительные требования
+- Python 3.10+
+- PostgreSQL (или Docker)
+- Git
+
+### Вариант 1: Локальный запуск
+
+**1. Клонируй репозиторий**
+```bash
+git clone https://github.com/Stasics/quick-parcel.git
+cd quick-parcel
